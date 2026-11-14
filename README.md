@@ -99,7 +99,7 @@ pytest -q
 subscription-analytics demo --full-refresh
 ```
 
-The Python suite tests deterministic generation, valid and invalid input, conflicting replay rollback, identity restrictions, expected MRR values, late historical corrections, stale revisions, replay stability, and full-refresh parity. The dbt build checks 39 data assertions. The [CI workflow](.github/workflows/ci.yml) runs lint, tests and the demo on Python 3.12 and 3.13 and retains report/build artifacts for seven days.
+The Python suite tests deterministic generation, valid and invalid input, conflicting replay rollback, identity restrictions, expected MRR values, empty sources, late historical corrections, stale revisions, replay stability, and full-refresh parity. The dbt build checks 40 data assertions. The [CI workflow](.github/workflows/ci.yml) runs lint, tests and the demo on Python 3.12 and 3.13 and retains report/build artifacts for seven days.
 
 ## Observed example
 

@@ -26,16 +26,17 @@ with prior_state as (
     from prior_state
 )
 select
-    month_start,
-    sum(prior_mrr_cents)::bigint as opening_mrr_cents,
-    sum(new_mrr_cents)::bigint as new_mrr_cents,
-    sum(reactivation_mrr_cents)::bigint as reactivation_mrr_cents,
-    sum(expansion_mrr_cents)::bigint as expansion_mrr_cents,
-    sum(contraction_mrr_cents)::bigint as contraction_mrr_cents,
-    sum(churn_mrr_cents)::bigint as churn_mrr_cents,
-    sum(mrr_cents)::bigint as closing_mrr_cents,
+    months.month_start,
+    coalesce(sum(prior_mrr_cents), 0)::bigint as opening_mrr_cents,
+    coalesce(sum(new_mrr_cents), 0)::bigint as new_mrr_cents,
+    coalesce(sum(reactivation_mrr_cents), 0)::bigint as reactivation_mrr_cents,
+    coalesce(sum(expansion_mrr_cents), 0)::bigint as expansion_mrr_cents,
+    coalesce(sum(contraction_mrr_cents), 0)::bigint as contraction_mrr_cents,
+    coalesce(sum(churn_mrr_cents), 0)::bigint as churn_mrr_cents,
+    coalesce(sum(mrr_cents), 0)::bigint as closing_mrr_cents,
     count(*) filter (where mrr_cents > 0) as active_subscriptions,
     count(distinct customer_id) filter (where mrr_cents > 0) as active_customers,
     count(*) filter (where prior_mrr_cents > 0 and mrr_cents = 0) as churned_subscriptions
-from movements
-group by month_start
+from {{ ref('dim_month') }} as months
+left join movements on months.month_start = movements.month_start
+group by months.month_start

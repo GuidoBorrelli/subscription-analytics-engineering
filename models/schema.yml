@@ -9,6 +9,7 @@ seeds:
         data_tests: [not_null]
       - name: currency
         data_tests:
+          - not_null
           - accepted_values:
               arguments:
                 values: ['CHF']

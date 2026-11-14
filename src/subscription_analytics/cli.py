@@ -48,7 +48,7 @@ def export_report(database: Path, output: Path) -> None:
         rows = cursor.fetchall()
     output.mkdir(parents=True, exist_ok=True)
     with (output / "monthly_metrics.csv").open("w", newline="") as handle:
-        writer = csv.writer(handle)
+        writer = csv.writer(handle, lineterminator="\n")
         writer.writerow(columns)
         writer.writerows(rows)
     display_columns = ["Month", "Active subscriptions", "Active customers", "Closing MRR (CHF)"]

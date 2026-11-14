@@ -4,7 +4,8 @@ import subprocess
 import duckdb
 import pytest
 
-from subscription_analytics.cli import export_report, run_dbt
+from subscription_analytics.cli import ROOT, export_report, run_dbt
+from subscription_analytics.generate import generate
 from subscription_analytics.ingest import ingest
 
 
@@ -73,7 +74,7 @@ def test_metrics_corrections_replays_and_incremental_full_refresh_parity(tmp_pat
         )
         == original
     )
-    # Correct an old effective date and add a late historical event.
+    # Correct a historical plan assignment and add a late historical event.
     ingest(
         database,
         {
@@ -97,6 +98,14 @@ def test_metrics_corrections_replays_and_incremental_full_refresh_parity(tmp_pat
         "select mrr_cents, source_revision from analytics.fct_subscription_month "
         "where subscription_id = 's1' and month_start = '2025-02-01'",
     ) == [(19900, 3)]
+    # Move the reactivation date from April to May; April must be rebuilt to inactive.
+    ingest(database, {"customers": [], "events": [event("e4", "s1", 5, "scale", revision=2)]})
+    run_dbt(database, target=tmp_path / "dbt")
+    assert rows(
+        database,
+        "select closing_mrr_cents, reactivation_mrr_cents from analytics.mart_mrr_movements "
+        "where month_start in ('2025-04-01', '2025-05-01') order by month_start",
+    ) == [(2900, 0), (22800, 19900)]
     incremental = rows(
         database,
         "select * from analytics.fct_subscription_month order by subscription_id, month_start",
@@ -116,14 +125,43 @@ def test_metrics_corrections_replays_and_incremental_full_refresh_parity(tmp_pat
     assert metrics[1]["closing_mrr_cents"] == "27800"
 
 
-def test_missing_plan_and_ambiguous_dates_fail_dbt_quality_gate(tmp_path):
+@pytest.mark.parametrize(
+    "invalid_events",
+    [
+        [event("e1", "s1", 1, "unmapped_plan")],
+        [event("e1", "s1", 1), event("e2", "s1", 1, "growth")],
+        [{**event("e1", "s1", 1), "effective_date": "2024-12-01"}],
+    ],
+    ids=["unknown-plan", "ambiguous-date", "outside-reporting-window"],
+)
+def test_invalid_sources_fail_dbt_quality_gate(tmp_path, invalid_events):
     database = tmp_path / "warehouse.duckdb"
     ingest(
         database,
         {
             "customers": [{"customer_id": "c1", "segment": "small"}],
-            "events": [event("e1", "s1", 1), event("e2", "s1", 1, "unmapped_plan")],
+            "events": invalid_events,
         },
     )
     with pytest.raises(subprocess.CalledProcessError):
         run_dbt(database, full_refresh=True, target=tmp_path / "dbt")
+
+
+def test_default_report_reproduces_committed_example(tmp_path):
+    database = tmp_path / "analytics.duckdb"
+    ingest(database, generate())
+    run_dbt(database, full_refresh=True, target=tmp_path / "dbt")
+    export_report(database, tmp_path / "report")
+    for name in ("monthly_metrics.csv", "index.html"):
+        assert (tmp_path / "report" / name).read_bytes() == (
+            ROOT / "docs/example" / name
+        ).read_bytes()
+
+
+def test_empty_source_keeps_reporting_calendar_with_zero_metrics(tmp_path):
+    database = tmp_path / "warehouse.duckdb"
+    assert ingest(database, {"customers": [], "events": []}) == 0
+    run_dbt(database, full_refresh=True, target=tmp_path / "dbt")
+    metrics = rows(database, "select * from analytics.mart_mrr_movements order by month_start")
+    assert len(metrics) == 12
+    assert all(all(value == 0 for value in month[1:]) for month in metrics)

@@ -25,3 +25,5 @@ Each fact row links to the event and revision determining its month-end state. `
 Dimension joins are many-to-one and covered by uniqueness/relationship tests. Calendar expansion is the only intentional multiplication: every subscription receives one row per reporting month. The coverage test checks row counts and uniqueness of that grain.
 
 The generator creates one subscription per customer for compact examples. The model supports multiple subscriptions per customer and the integration test checks that active customer counts use distinct IDs.
+
+An empty source is a valid state. The monthly aggregate retains all configured reporting months with zero metrics, so a missing report row does not stand in for zero business activity.
