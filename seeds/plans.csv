@@ -1,0 +1,4 @@
+plan_id,plan_name,monthly_price_cents,currency
+starter,Starter,2900,CHF
+growth,Growth,7900,CHF
+scale,Scale,19900,CHF

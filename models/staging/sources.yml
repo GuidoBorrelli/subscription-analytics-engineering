@@ -1,0 +1,21 @@
+version: 2
+sources:
+  - name: raw
+    schema: raw
+    description: Synthetic records ingested transactionally by the Python loader.
+    tables:
+      - name: customers
+        columns:
+          - name: customer_id
+            data_tests: [unique, not_null]
+      - name: subscription_events
+        description: Append-only event revisions; ingestion_sequence records arrival order.
+        columns:
+          - name: ingestion_sequence
+            data_tests: [unique, not_null]
+          - name: customer_id
+            data_tests:
+              - relationships:
+                  arguments:
+                    to: source('raw', 'customers')
+                    field: customer_id

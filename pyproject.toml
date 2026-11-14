@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "subscription-analytics-engineering"
+version = "0.1.0"
+description = "Reproducible subscription analytics from synthetic events to tested dbt marts"
+requires-python = ">=3.12,<3.14"
+dependencies = ["duckdb==2.0.0", "dbt-duckdb==1.11.1", "dbt-core==1.12.7"]
+
+[project.scripts]
+subscription-analytics = "subscription_analytics.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

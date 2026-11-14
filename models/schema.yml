@@ -1,0 +1,96 @@
+version: 2
+seeds:
+  - name: plans
+    description: Governed fictional CHF price catalog. Prices are immutable; price changes use new IDs.
+    columns:
+      - name: plan_id
+        data_tests: [unique, not_null]
+      - name: monthly_price_cents
+        data_tests: [not_null]
+      - name: currency
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['CHF']
+models:
+  - name: stg_subscription_events
+    description: One row per event_id, selecting the highest business revision regardless of arrival.
+    columns:
+      - name: event_id
+        data_tests: [unique, not_null]
+      - name: subscription_id
+        data_tests: [not_null]
+      - name: plan_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('plans')
+                field: plan_id
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['active', 'cancelled']
+  - name: int_subscription_watermarks
+    description: One row per subscription; latest arrival sequence across all event revisions.
+    columns:
+      - name: subscription_id
+        data_tests: [unique, not_null]
+  - name: dim_customer
+    description: One row per fictional customer. Customer attributes are immutable for this demo.
+    columns:
+      - name: customer_id
+        data_tests: [unique, not_null]
+  - name: dim_plan
+    description: One row per plan; prices expressed as integer CHF cents.
+    columns:
+      - name: plan_id
+        data_tests: [unique, not_null]
+  - name: dim_month
+    description: One row per configured reporting month, inclusive of both bounds.
+    columns:
+      - name: month_start
+        data_tests: [unique, not_null]
+  - name: fct_subscription_month
+    description: >-
+      One row per subscription_id and month_start, including not-started and cancelled months.
+      A late arrival rebuilds the entire affected subscription history within the reporting window.
+    columns:
+      - name: subscription_id
+        data_tests: [not_null]
+      - name: month_start
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_month')
+                field: month_start
+      - name: customer_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_id
+      - name: mrr_cents
+        description: Full contracted monthly amount at month end, not recognised revenue or cash.
+        data_tests: [not_null]
+      - name: source_event_id
+        description: Latest effective event at month end; null before subscription start.
+      - name: source_revision
+        description: Business revision used to derive the month-end state.
+      - name: source_sequence
+        description: Arrival high-water mark for this subscription, including superseded revisions.
+        data_tests: [not_null]
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['active', 'cancelled', 'not_started']
+  - name: mart_mrr_movements
+    description: One row per month; a reconciled bridge from opening to closing recurring revenue.
+    columns:
+      - name: month_start
+        data_tests: [unique, not_null]
+      - name: closing_mrr_cents
+        data_tests: [not_null]
